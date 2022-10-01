@@ -92,11 +92,10 @@ Our algorithm successfully provides insight for better crowd navigation in the p
 </p>
 
 **Trajectories of the robot (yellow) and human agents for (a) Seq-GT-VAE, (b) OBS-FE, and (c) our PaS-VAE.** 
-Our approach takes a comparable route to the oracle Seq-GT-VAE. While OBS-FE is highly reactive to unexpected agents resulting in sharp turns, our 
-algorithm reaches the goal using a more efficient and smooth trajectory.
+Our approach takes a comparable route to the oracle ground-truth view. While the limited sensor view baseline is highly reactive to unexpected agents resulting in sharp turns, our algorithm reaches the goal using a more efficient and smooth trajectory. 
 
 <p align="center">
-<img src="/figures/Episode_Trajectory.png" width="638.5">
+<video src='/figures/PaS_CrowdNav_github_video.mpr' width="638.5">
 </p>
 
 ## Citation
