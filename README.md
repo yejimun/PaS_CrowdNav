@@ -1,7 +1,7 @@
 # PaS_CrowdNav
 This repository contains the code for our paper titled "Occlusion-Aware Crowd Navigation Using People as Sensors". 
 For more details, please refer to our [arXiv preprint](##)
-and [youtube video](https://youtu.be/BG5s7w5BdME).
+and [YouTube video](https://youtu.be/BG5s7w5BdME).
 
 <p align="center">
 <img src="/figures/Intro_turtlebot.jpg" width="500" />
@@ -76,8 +76,8 @@ python plot.py
 ## Results 
 **Illustration of our occlusion inference performance.**
 The figure shows human agent trajectories in our sequential observation input 
-for 1 s and the reconstructed OGMs Oˆt from our PaS encoding. The observed and occluded humans are denoted as blue and red circles, 
-respectively. If an agent is temporarily occluded but has been seen in the past 1 s, it is denoted in magenta. In the OGM Oˆt, higher 
+for 1 s and the reconstructed OGMs from our PaS encoding. The observed and occluded humans are denoted as blue and red circles, 
+respectively. If an agent is temporarily occluded but has been seen in the past 1 s, it is denoted in magenta. In the OGM, higher 
 occupied probability cells are darker in shade. The estimated OGMs from our approach show properties that promote better navigation. 
 In (a), the PaS encoding favors estimation of occluded agents that may pose a potential danger to the robot such as an approaching 
 agent (humans 2 and 3) rather than human 4 who is moving away at a distance from the robot. In (b), despite fewer observed 
@@ -100,7 +100,7 @@ Our approach takes a comparable route to the oracle ground-truth view. While the
 ## Citation
 If you find the code or the paper useful for your research, please cite our paper:
 ```
-Y.-J. Mun, M. Itkina, S. Liu, and K. Driggs-Campbell. "Occlusions-Aware Crowd Navigation Using People as Sensors". ArXiv, 2022.
+Y.-J. Mun, M. Itkina, S. Liu, and K. Driggs-Campbell. "Occlusion-Aware Crowd Navigation Using People as Sensors". ArXiv, 2022.
 ```
 
 ## Credits
