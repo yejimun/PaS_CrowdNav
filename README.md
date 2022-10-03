@@ -90,7 +90,7 @@ Our algorithm successfully provides insight for better crowd navigation in the p
 <img src="/figures/PaSOGM.png" width="800" >
 </p>
 
-**Trajectories of the robot (yellow) and human agents for (a) Seq-GT-VAE, (b) OBS-FE, and (c) our PaS-VAE.** 
+**Collision avoidance of the robot (yellow) with (a) the limited view (baseline), (b) our PaS occlusion inference, and (c) the ground-truth view (oracle).** 
 Our approach takes a comparable route to the oracle ground-truth view. While the limited sensor view baseline is highly reactive to unexpected agents resulting in sharp turns, our algorithm reaches the goal using a more efficient and smooth trajectory. 
 
 <p align="center">
