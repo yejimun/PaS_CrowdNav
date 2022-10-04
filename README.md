@@ -1,6 +1,6 @@
 # PaS_CrowdNav
 This repository contains the code for our paper titled "Occlusion-Aware Crowd Navigation Using People as Sensors". 
-For more details, please refer to our [arXiv preprint](##)
+For more details, please refer to our [arXiv preprint](https://arxiv.org/abs/2210.00552))
 and [YouTube video](https://youtu.be/BG5s7w5BdME).
 
 <p align="center">
