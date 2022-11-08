@@ -26,10 +26,10 @@ class Policy(nn.Module):
 
             if config.pas.encoder_type == 'vae':
                 if config.sim.train_val_sim == "turtlebot":
-                    ae_weight_file = 'data/Turtlebot_VAE_LabelVAE_CircleFOV30/ae_ckpt/ae_weight_60.pth'
+                    vae_weight_file = 'data/Turtlebot_LabelVAE_CircleFOV30/label_vae_ckpt/label_vae_weight_60.pth'
                 elif config.sim.train_val_sim == "circle_crossing":
-                    ae_weight_file = 'data/VAE_LabelVAE_CircleFOV30/ae_ckpt/ae_weight_300.pth'
-                self.base.Label_VAE.load_state_dict(torch.load(ae_weight_file), strict=True)
+                    vae_weight_file = 'data/LabelVAE_CircleFOV30/label_vae_ckpt/label_vae_weight_300.pth'
+                self.base.Label_VAE.load_state_dict(torch.load(vae_weight_file), strict=True)
         else:
             raise NotImplementedError
 

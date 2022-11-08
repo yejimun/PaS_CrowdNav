@@ -9,12 +9,12 @@ model_names = sorted(name for name in models.__dict__
     and callable(models.__dict__[name]))
 
 from rl.utils import init
-\
+
 
 
 class Flatten(nn.Module):
     def forward(self, x):
-        return x.view(x.size(0),1, -1)  #(T*N,1 -1)
+        return x.view(x.size(0),1, -1)  #(seq_len*nenv,1 -1)
 
 
 class RNNBase(nn.Module):
@@ -43,25 +43,19 @@ class RNNBase(nn.Module):
             # use env dimension as batch
             # [1, 12, 6, ?] -> [1, 12*6, ?] or [30, 6, 6, ?] -> [30, 6*6, ?]
             seq_len, nenv, agent_num, _ = x.size() 
-            x = x.view(seq_len, nenv*agent_num, -1) # (1, 12, 64)
+            x = x.view(seq_len, nenv*agent_num, -1) 
             hxs_times_masks = hxs * (masks.view(seq_len, nenv, 1, 1))
-            hxs_times_masks = hxs_times_masks.view(seq_len, nenv*agent_num, -1) # (1, 12, 128)            
+            hxs_times_masks = hxs_times_masks.view(seq_len, nenv*agent_num, -1) # (1, 12, *)            
             x, hxs = self.gru(x, hxs_times_masks) # we already unsqueezed the inputs in SRNN forward function
-            x = x.view(seq_len, nenv, agent_num, -1) # (T, N, 1, 256)
-            hxs = hxs.view(seq_len, nenv, agent_num, -1) # (T, N, 1, 256)
+            x = x.view(seq_len, nenv, agent_num, -1) 
+            hxs = hxs.view(seq_len, nenv, agent_num, -1) 
 
         # during update, input shape[0]=1 * nsteps (30) = hidden state shape[0]
         else:
-            # x : (30, 6, args.rnn_embedding_size)
-            # hxs : (1, 6, args.rnn_hidden_size)
-            # masks : (30, 6, 1)
-
-
-            # N: nenv, T: seq_len, 
-            T, N, agent_num, _ = x.size()
+            seq_len, nenv, agent_num, _ = x.size()
 
             # Same deal with masks
-            masks = masks.view(T, N)
+            masks = masks.view(seq_len, nenv)
 
             # Let's figure out which steps in the sequence have a zero for any agent
             # We will always assume t=0 has a zero in it as that makes the logic cleaner
@@ -81,7 +75,7 @@ class RNNBase(nn.Module):
                 has_zeros = (has_zeros + 1).numpy().tolist()
 
             # add t=0 and t=T to the list
-            has_zeros = [0] + has_zeros + [T]
+            has_zeros = [0] + has_zeros + [seq_len]
 
             outputs = []
             for i in range(len(has_zeros) - 1):
@@ -90,22 +84,19 @@ class RNNBase(nn.Module):
                 start_idx = has_zeros[i]
                 end_idx = has_zeros[i + 1]
 
-                # x and hxs have 4 dimensions, merge the 2nd and 3rd dimension
                 x_in = x[start_idx:end_idx]
                 x_in = x_in.view(x_in.size(0), x_in.size(1)*x_in.size(2), x_in.size(3))
-                hxs = hxs.view(hxs.size(0), N, agent_num, -1)
+                hxs = hxs.view(hxs.size(0), nenv, agent_num, -1)
                 hxs = hxs * (masks[start_idx].view(1, -1, 1,1))
                 hxs = hxs.view(hxs.size(0), hxs.size(1) * hxs.size(2), hxs.size(3))
-                rnn_scores, hxs = self.gru(x_in, hxs) # [input] x_in : (start_indx:end_indx, nenv,args.rnn_embedding_size),  hxs : (1, nenv, args.rnn_hidden_size)
+                rnn_scores, hxs = self.gru(x_in, hxs) 
 
-                outputs.append(rnn_scores) # rnn_scores : (start_indx:end_indx, nenv,args.rnn_hidden_size) )
+                outputs.append(rnn_scores) 
 
-            # assert len(outputs) == T
-            # x is a (T, N, -1) tensor
             x = torch.cat(outputs, dim=0) 
             # flatten
-            x = x.view(T, N, agent_num, -1) # (T, nenv, args.rnn_output_size) --> (T, nenv, 1, args.rnn_output_size)
-            hxs = hxs.view(1, N, agent_num, -1)
+            x = x.view(seq_len, nenv, agent_num, -1) 
+            hxs = hxs.view(1, nenv, agent_num, -1)
         return x, hxs
 
 
@@ -142,10 +133,10 @@ class FeatureRNN(RNNBase):
         masks : cell state of the current RNN (sequence, nenv, 1)
         '''
         # Encode the input position
-        encoded_input = self.encoder_linear(pos) # (T,N,1, args.rnn_embedding_size)
+        encoded_input = self.encoder_linear(pos) # (seq_len, nenv,1, args.rnn_embedding_size)
         encoded_input = self.relu(encoded_input)
 
-        x, h_new = self._forward_gru(encoded_input, h, masks) # x : (T, nenv, 1, 256)
+        x, h_new = self._forward_gru(encoded_input, h, masks) # x : (seq_len, nenv, 1, 256)
 
         outputs = self.output_linear(x)
 
@@ -245,6 +236,13 @@ class Label_VAE(nn.Module):
 
 
     def forward(self, grid):
+        """
+        Args:
+            grid:(seq_len*nenv, 1, *grid_shape)
+        Return:
+            z : (seq_len*nenv, 1, args.rnn_output_size)
+            decoded : (seq_len*nenv, 1, *grid_shape)
+        """
         z_mu, z_log_variance, z = self.encode(grid) # z:(1, 1, args.rnn_output_size)
         decoded = self.decode(z) 
 
@@ -283,27 +281,6 @@ class Sensor_VAE(nn.Module):
             init_(nn.Linear(32*3*3, args.rnn_output_size*2))          
         )
         
-        self.decoder = nn.Sequential(
-            init_(nn.Linear(args.rnn_output_size, 32*3*3)),               
-            View((-1, 32, 3, 3)),              
-            nn.ReLU(), 
-            nn.BatchNorm2d(32),
-            init_(nn.ConvTranspose2d(32, 64, 4, 2, 1)),      
-            nn.ReLU(), 
-            nn.BatchNorm2d(64),
-            init_(nn.ConvTranspose2d(64, 128, 4, 2, 1)),     
-            nn.ReLU(),
-            nn.BatchNorm2d(128),
-            init_(nn.ConvTranspose2d(128, 64, 4, 2, 1,1)), 
-            nn.ReLU(), 
-            nn.BatchNorm2d(64),
-            init_(nn.ConvTranspose2d(64, 32, 4, 2, 1)), 
-            nn.ReLU(), 
-            nn.BatchNorm2d(32),
-            init_(nn.ConvTranspose2d(32, 1, 4, 2, 1)), 
-            nn.Sigmoid()
-        )
-
         self.linear_mu = nn.Linear(args.rnn_output_size*2, args.rnn_output_size)
         self.linear_var = nn.Linear(args.rnn_output_size*2, args.rnn_output_size)
         self.softplus = nn.Softplus()
@@ -319,24 +296,7 @@ class Sensor_VAE(nn.Module):
         z_log_variance = torch.log(self.softplus(self.linear_var(x)))
         z = self.reparameterize(z_mu, z_log_variance)
         return z_mu.squeeze(1), z_log_variance.squeeze(1), z
-    
-    def decode(self, z):
-        decoded = self.decoder(z)
-        return decoded
-
-    def forward(self, grid):
-        """
-        Args:
-            grid:(T*N, 1, *grid_shape)
-        Return:
-            z : (T*N, 1, args.rnn_output_size)
-            decoded : (T*N, 1, *grid_shape)
-        """
-        z_mu, z_log_variance, z = self.encode(grid)     
-        decoded = self.decode(z) 
-
-        return z_mu.squeeze(1), z_log_variance.squeeze(1), z, decoded 
-    
+       
 
 class Sensor_CNN(nn.Module):
     def __init__(self, args):
@@ -371,10 +331,9 @@ class Sensor_CNN(nn.Module):
     def forward(self, grid):
         """
         Args:
-            grid:(T*N, 1, *grid_shape)
+            grid:(seq_len*nenv, 1, *grid_shape)
         Return:
-            z : (T*N, 1, args.rnn_output_size)
-            decoded : (T*N, 1, *grid_shape)
+            z : (seq_len*nenv, 1, args.rnn_output_size)
         """
         z = self.encoder(grid) 
 
@@ -415,70 +374,14 @@ class Sensor_CNN_seq(nn.Module):
     def forward(self, grid):
         """
         Args:
-            grid:(T*N, 1, *grid_shape)
+            grid:(seq_len*nenv, S, *grid_shape)
         Return:
-            z : (T*N, 1, args.rnn_output_size)
-            decoded : (T*N, 1, *grid_shape)
+            z : (seq_len*nenv, 1, args.rnn_output_size)
         """
         z = self.encoder(grid) 
 
         return z
     
-    
-class Sensor_Encoder(nn.Module):
-    def __init__(self, args, config):
-        super().__init__()
-        """
-        Args:
-            latent_size : output latent vector size for encoder (args.rnn_input_size)
-        """
-        init_ = lambda m: init(m, nn.init.orthogonal_, lambda x: nn.init.
-                               constant_(x, 0), np.sqrt(2))
-        self.args = args
-        self.sequence = config.pas.sequence
-        self.num_steps = args.num_steps
-
-        self.nminibatch = args.num_mini_batch
-        self.rnn_hidden_size = args.rnn_hidden_size
-
-        self.encoder = nn.Sequential(
-            init_(nn.Conv2d(4, 32, 4, 2, 1)),          
-            nn.BatchNorm2d(32),
-            nn.ReLU(), 
-            init_(nn.Conv2d(32, 64, 4, 2, 1)),         
-            nn.BatchNorm2d(64),
-            nn.ReLU(), 
-            init_(nn.Conv2d(64, 128, 4, 2, 1)),         
-            nn.BatchNorm2d(128),
-            nn.ReLU(), 
-            init_(nn.Conv2d(128, 64, 4, 2, 1)),          
-            nn.BatchNorm2d(64),
-            nn.ReLU(), 
-            init_(nn.Conv2d(64, 32, 4, 2, 1)),          
-            nn.BatchNorm2d(32),
-            nn.ReLU(), 
-            Flatten(),
-            init_(nn.Linear(32*3*3, args.rnn_output_size))           
-        )
-        
-
-    def forward(self, grid):
-        """
-        Args:
-            grid:(T*N, S, *grid_shape)
-            hidden_states_pas_RNNs:(1, T*N, args.rnn_output_size)
-            masks : (T*N, S)
-        Return:
-            z_outputs : (T*N, 1, 256)
-        """
-       
-        z = self.encoder(grid)        
-        estimation = torch.zeros(grid.shape).to("cuda")
-        hxs =  torch.zeros(1, z.size(0), 1, self.rnn_hidden_size).to("cuda")
-        return z, hxs, estimation
-    
-    
-
 
 
 class PASRNN(nn.Module):
@@ -556,9 +459,9 @@ class PASRNN(nn.Module):
     def forward(self, inputs, rnn_hxs, masks, infer=False):
         """[summary]
         Args:
-            inputs  ['vector': (1*N, 1, vec_length) , 'grid':(T*N, 1, *grid_shape) or (T*N, S, *grid_shape)]   
-            rnn_hxs ([type]): ['vector': (1*N, 1, hidden_size) , 'grid':(1*N, 1, hidden_size)]
-            masks ([type]): [description] (T*N, 1) or  (T*N,seq_length)             
+            inputs  ['vector': (1*nenv, 1, vec_length) , 'grid':(seq_len*nenv, 1, *grid_shape) or (seq_len*nenv, S, *grid_shape)]   
+            rnn_hxs ([type]): ['vector': (1*nenv, 1, hidden_size) , 'grid':(1*nenv, 1, hidden_size)]
+            masks ([type]): [description] (seq_len*nenv, 1) or  (seq_len*nenv,seq_length)             
             infer (bool, optional): [description]. Defaults to False.
         """
 
@@ -605,7 +508,7 @@ class PASRNN(nn.Module):
             feat = reshapeT(feat, num_steps, nenv)
             hidden_states_vector_RNNs = reshapeT(rnn_hxs['policy'], 1, nenv)
             outputs, h_nodes = self.FeatureRNN(feat, hidden_states_vector_RNNs, masks)
-            x = outputs[:, :, 0, :] # x: (T, N, args.rnn_output_size)
+            x = outputs[:, :, 0, :] # x: (seq_len, nenv, args.rnn_output_size)
             rnn_hxs['policy'] = h_nodes
 
 

@@ -105,7 +105,7 @@ def get_args():
     parser.add_argument(
         '--num-env-steps',
         type=int,
-        default=15e6,
+        default=60e3,
         help='number of environment steps to train (default: 10e6)')
     parser.add_argument(
         '--use-linear-lr-decay',
@@ -117,7 +117,7 @@ def get_args():
     parser.add_argument(
         '--save-interval',
         type=int,
-        default=400,
+        default=100,
         help='save interval, one save per n updates (default: 100)')
     parser.add_argument(
         '--use-gae',

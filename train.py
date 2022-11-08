@@ -8,14 +8,13 @@ from rl import utils
 import numpy as np
 import torch
 import torch.nn as nn
-from torch.utils.tensorboard import SummaryWriter
 import pandas as pd
 
 from rl.ppo import PPO
 from rl.vec_env.envs import make_vec_envs
 from rl.model import Policy
 from rl.storage import RolloutStorage
-from rl.evaluation import evaluate
+from evaluation import evaluate
 from test import test
 from crowd_sim import *
 
@@ -76,7 +75,6 @@ def main():
 	summary_path = algo_args.output_dir+'/runs_gradient'
 	if not os.path.exists(summary_path):
 		os.makedirs(summary_path)
-	writer = SummaryWriter(summary_path) 
 
 
 	# For fastest training: use GRU
@@ -90,7 +88,6 @@ def main():
 	val_envs = make_vec_envs(env_name, algo_args.seed, 1,
 						 algo_args.gamma, device, allow_early_resets=True,
 						 envConfig=config, phase='val')
-
 
 
 	actor_critic = Policy(
@@ -125,8 +122,7 @@ def main():
 		algo_args.num_mini_batch,
 		algo_args.value_loss_coef,
 		algo_args.entropy_coef,
-		m_coef = config.pas.m_coef,
-		recon_coef = config.pas.est_coef,
+		PaS_coef = config.pas.PaS_coef,
 		lr=algo_args.lr,
 		eps=algo_args.eps,
 		max_grad_norm=algo_args.max_grad_norm)
@@ -161,7 +157,6 @@ def main():
 
 		for step in range(algo_args.num_steps):
 			with torch.no_grad():
-				# # ! This for loop can be erased if using nuscene representation
 				masks = rollouts.masks[step]
 
 				value, action, action_log_prob, recurrent_hidden_states, _ = actor_critic.act(
@@ -200,13 +195,12 @@ def main():
 				masks).detach()
 
 
-
 		rollouts.compute_returns(next_value, algo_args.gamma,
 								 algo_args.gae_lambda)
 
 		
 		if config.robot.policy=='pas_rnn' and config.pas.encoder_type !='cnn':
-			value_loss, action_loss, dist_entropy, m_loss, recon_loss = agent.update(rollouts)
+			value_loss, action_loss, dist_entropy, PaS_loss = agent.update(rollouts)
 
 
 		else:
@@ -259,7 +253,7 @@ def main():
 				df = pd.DataFrame({'misc/nupdates': [j], 'misc/total_timesteps': [total_num_steps],
 								'fps': int(total_num_steps / (end - start)), 'eprewmean': [np.mean(episode_rewards)],
 								'loss/policy_entropy': dist_entropy, 'loss/policy_loss': action_loss,
-								'loss/value_loss': value_loss, 'loss/m_loss': m_loss, 'loss/recon_loss': recon_loss})
+								'loss/value_loss': value_loss, 'loss/PaS_loss': PaS_loss})
 
 			else:
 				df = pd.DataFrame({'misc/nupdates': [j], 'misc/total_timesteps': [total_num_steps],

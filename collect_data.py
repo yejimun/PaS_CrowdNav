@@ -19,7 +19,7 @@ from crowd_nav.configs.config import Config
 # sim.human_num = 6
 
 # Things to change in arguments
-# 'VAEdata/train'
+# 'VAEdata/train' or 'VAEdata/val' or 'VAEdata/test'
 #############
 
 def main():

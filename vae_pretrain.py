@@ -160,24 +160,21 @@ def MSE(x, x_prime):
     batch_size = x.size(0)
     return F.mse_loss(x, x_prime, reduction='mean').div(batch_size)
 
-
-def kl_divergence(mu, log_var):
-    
-    kld_loss = torch.mean(-0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp(), dim = 1), dim = 0)
-    return kld_loss 
-
-
 def average(input_list):
     if input_list:
         return sum(input_list) / len(input_list)
     else:
         return 0
 
+def KL_loss(mu, logvar):
+    KLD = torch.mean(-0.5 * torch.sum(1 + logvar - mu ** 2 - logvar.exp(), dim = 1), dim = 0) 
+    return KLD
+
 
 
 def VAE_loss(x, recon_x, mu, logvar):
     MSE = reconstruction_loss(x, recon_x)
-    KLD = torch.mean(-0.5 * torch.sum(1 + logvar - mu ** 2 - logvar.exp(), dim = 1), dim = 0) 
+    KLD = KL_loss(mu, logvar)
     return MSE, KLD
 
 
@@ -186,8 +183,6 @@ def VAE_loss(x, recon_x, mu, logvar):
 def Label_vae_evaluate(beta, logging, loader, model, epoch=None):
     recon_loss_epoch = []
     k_loss_epoch = []
-    total_obs_agents = 0
-    reconstructed_agents = 0
 
     model.eval()
 
@@ -213,13 +208,13 @@ def Label_vae_evaluate(beta, logging, loader, model, epoch=None):
         
         if epoch == None:    
             loss = logging.info('(Test) recon_loss: {:.4f}, k_loss: {:.4f}'. format(avg_recon_loss, avg_k_loss))  
-            save_path = out_dir+'/VAE_test_sample_new_validation/'
+            save_path = out_dir+'/Label_VAE_test_sample/'
         else:
             loss = logging.info('(Eval Epoch {:d}) recon_loss: {:.4f}, k_loss: {:.4f}'. format(epoch, avg_recon_loss, avg_k_loss))   
-            save_path = out_dir+'/VAE_val_sample_new/'
+            save_path = out_dir+'/Label_VAE_val_sample/'
 
-            writer.add_scalar('VAEtrain_val_recon_loss', avg_recon_loss, epoch)
-            writer.add_scalar('VAEtrain_val_k_loss', avg_k_loss, epoch)
+            writer.add_scalar('Label_VAE_val_recon_loss', avg_recon_loss, epoch)
+            writer.add_scalar('Label_VAE_val_k_loss', avg_k_loss, epoch)
 
             
         if not os.path.exists(save_path):
@@ -291,16 +286,14 @@ def Label_vae_train(beta, logging, train_loader, validation_loader, model, ckpt_
         loop = tqdm(train_loader, total = len(train_loader), leave = True)
         if epoch % 20 == 0 :
             loop.set_postfix(loss = Label_vae_evaluate(beta, logging, validation_loader, model, epoch))
-            ckpt_file = os.path.join(ckpt_path, 'ae_weight_'+str(epoch)+'.pth')
+            ckpt_file = os.path.join(ckpt_path, 'label_vae_weight_'+str(epoch)+'.pth')
             torch.save(model.state_dict(), ckpt_file)
             model.train()
         for label_grid, sensor_grid in loop: 
 
             label_grid, sensor_grid, _ = stack_tensors(label_grid, sensor_grid)  # (N,T, ...) --> (T*N, ...)       
 
-            reconstruct_mask = torch.ones(sensor_grid.shape).to(device) 
             mu_l, logvar_l, z_l, decoded_l = model(label_grid)    
-            reconstruct_mask = torch.ones(sensor_grid.shape).to(device) 
             recon_loss, k_loss = VAE_loss(label_grid, decoded_l, mu_l, logvar_l)
             loss = recon_loss + k_loss * beta
         
@@ -319,8 +312,8 @@ def Label_vae_train(beta, logging, train_loader, validation_loader, model, ckpt_
         logging.info('(Epoch {:d}) recon_loss: {:.4f}, k_loss: {:.4f}'.
                      format(epoch, avg_recon_loss, avg_k_loss))      
 
-        writer.add_scalar('VAEtrain_recon_loss', avg_recon_loss, epoch)
-        writer.add_scalar('VAEtrain_k_loss', avg_k_loss, epoch)
+        writer.add_scalar('Label_VAE_train_recon_loss', avg_recon_loss, epoch)
+        writer.add_scalar('Label_VAE_train_val_k_loss', avg_k_loss, epoch)
 
 
 
@@ -330,10 +323,7 @@ if __name__ == "__main__":
     device = ("cuda" if torch.cuda.is_available() else "cpu")
     num_epochs = 300 # 60 for the turtlebot experiment
     beta = 0.00025
-    ae_learning_rate =  0.001 
-    m_learning_rate = 0.001 
-    m_coef = 1. 
-    est_coef = 1.
+    vae_learning_rate =  0.001 
 
     algo_args = get_args()
     config = Config()
@@ -352,13 +342,13 @@ if __name__ == "__main__":
     
     import logging
 
-    output_path = 'VAE_LabelVAE_CircleFOV30'
+    output_path = 'LabelVAE_CircleFOV30'
 
     # configure logging
     out_dir = 'data/'+ output_path  
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
-    log_file = os.path.join(out_dir, 'ae_train.log')
+    log_file = os.path.join(out_dir, 'label_vae_train.log')
     mode = 'a'
     file_handler = logging.FileHandler(log_file, mode=mode)
     stdout_handler = logging.StreamHandler(sys.stdout)
@@ -366,7 +356,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=level, handlers=[stdout_handler, file_handler],
                         format='%(asctime)s, %(levelname)s: %(message)s', datefmt="%Y-%m-%d %%M:%S")
 
-    summary_path = out_dir+'/runs_ae_train' 
+    summary_path = out_dir+'/runs_label_vae_train' 
     if not os.path.exists(summary_path):
         os.makedirs(summary_path)
     writer = SummaryWriter(summary_path) 
@@ -375,15 +365,14 @@ if __name__ == "__main__":
     logging.info('(config) encodertype:{},beta: {:.6f}, seq_length: {:d}, '. format(encoder_type, beta, sequence))    
 
 
-    ae_ckpt_path = out_dir+'/ae_ckpt/'    
+    label_vae_ckpt_path = out_dir+'/label_vae_ckpt/'    
 
-    logging.info('(Loss coefficients) m: {:.6f}, est: {:.6f}'. format(m_coef, est_coef))    
-    logging.info('(Learning rate) step1:{:.6f}, step2: {:.6f}'. format(ae_learning_rate, m_learning_rate))   
+    logging.info('Learning rate:{:.6f}'. format(vae_learning_rate))   
     
 
     
-    if not os.path.exists(ae_ckpt_path):
-        os.makedirs(ae_ckpt_path)
+    if not os.path.exists(label_vae_ckpt_path):
+        os.makedirs(label_vae_ckpt_path)
 
     
     if encoder_type == 'vae':
@@ -391,10 +380,10 @@ if __name__ == "__main__":
         
     label_vae.to(device)
 
-    ## loading checkpoint for ae_train
+    ## loading checkpoint for label_vae_train
     # # if resume:
-    # ae_ckpt_file = os.path.join(ae_ckpt_path, 'ae_weight_'+str(300)+'.pth')
-    # ae_model.load_state_dict(torch.load(ae_ckpt_file))
+    # label_vae_ckpt_file = os.path.join(label_vae_ckpt_path, 'label_vae_weight_'+str(300)+'.pth')
+    # label_vae.load_state_dict(torch.load(label_vae_ckpt_file))
 
     
     train_set = DATA(logging, 'train', sequence=1) 
@@ -402,7 +391,7 @@ if __name__ == "__main__":
     train_loader = DataLoader(dataset=train_set, shuffle=True, batch_size=batch_size,num_workers=1,pin_memory=True, drop_last=True)
     validation_loader = DataLoader(dataset=val_set, shuffle=True, batch_size=batch_size,num_workers=1, pin_memory=True, drop_last=True)
 
-    Label_vae_train(beta, logging, train_loader, validation_loader, label_vae, ae_ckpt_path, num_epochs, ae_learning_rate)
+    Label_vae_train(beta, logging, train_loader, validation_loader, label_vae, label_vae_ckpt_path, num_epochs, vae_learning_rate)
 
 
     test_set = DATA(logging,'test', sequence=1)

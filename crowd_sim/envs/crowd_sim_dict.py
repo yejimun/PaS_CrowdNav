@@ -65,12 +65,11 @@ class CrowdSimDict(CrowdSim):
         self.dict_update()
         ego_dict, other_dict = self.ego_other_dict(ego_id)
         
-        label_grid, x_map, y_map, pre_map_x, pre_map_y = generateLabelGrid(ego_dict, other_dict, res=self.grid_res)
+        label_grid, x_map, y_map = generateLabelGrid(ego_dict, other_dict, res=self.grid_res)
         map_xy = [x_map, y_map]
-        pre_map_xy = [pre_map_x, pre_map_y]
 
         if self.gridsensor == 'sensor' or self.collectingdata:
-            visible_id, sensor_grid = generateSensorGrid(label_grid, ego_dict, other_dict, pre_map_xy, map_xy, self.FOV_radius, res=self.grid_res, invisible_id=self.invisible_id)
+            visible_id, sensor_grid = generateSensorGrid(label_grid, ego_dict, other_dict, map_xy, self.FOV_radius, res=self.grid_res)
             self.visible_ids.append(visible_id)
         else:
             visible_id = np.unique(label_grid[1])[:-1]

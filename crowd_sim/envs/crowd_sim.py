@@ -1,16 +1,12 @@
 import gym
 import numpy as np
-import pdb
 from numpy.linalg import norm
 
 from crowd_sim.envs.utils.human import Human
 from crowd_sim.envs.utils.robot import Robot
 from crowd_sim.envs.utils.info import *
-from crowd_sim.envs.grid_utils import intersect
-from crowd_sim.envs.utils.action import ActionRot, ActionXY
 from crowd_nav.policy.orca import ORCA
 from crowd_sim.envs.utils.state import *
-from crowd_nav.policy.policy_factory import policy_factory
 
 
 class CrowdSim(gym.Env):
@@ -108,8 +104,6 @@ class CrowdSim(gym.Env):
                               'test': self.config.env.test_size}
             self.circle_radius = config.sim.circle_radius
             self.human_num = config.sim.human_num
-
-            self.invisible_id = []
 
         else:
             raise NotImplementedError
@@ -604,11 +598,7 @@ class CrowdSim(gym.Env):
                 r_back = -2 * abs(action.v)
             else:
                 r_back = 0.
-            reward = reward + r_spin + r_back
-        else:
-            r_spin = -2 * abs(np.arctan2(action.vy, action.vx) - self.robot.theta)    
-            reward = reward + r_spin
-                
+            reward = reward + r_spin + r_back                
 
         return reward, done, episode_info
 
@@ -619,7 +609,7 @@ class CrowdSim(gym.Env):
         visible_human_states, num_visible_humans, human_visibility = self.get_num_human_in_fov()
         self.update_last_human_states(human_visibility, reset=reset)
         
-        if self.robot.policy.name in ['lstm_ppo', 'srnn', 'pas_rnn']:
+        if self.robot.policy.name in ['pas_rnn']:
             ob = [num_visible_humans]
             # append robot's state
             robotS = np.array(self.robot.get_full_state_list())
@@ -696,7 +686,7 @@ class CrowdSim(gym.Env):
         ob = self.generate_ob(reset=False)
 
 
-        if self.robot.policy.name in ['srnn' or 'pas_rnn']:
+        if self.robot.policy.name in [ 'pas_rnn']:
             info={'info':episode_info}
         else: # for orca and sf
             info=episode_info

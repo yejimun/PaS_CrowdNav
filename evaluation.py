@@ -1,10 +1,10 @@
 import numpy as np
 import torch
 import os
+import pdb
 
 from crowd_sim.envs.utils.info import *
 from crowd_sim.envs.grid_utils import MapSimilarityMetric
-from vae_pretrain import reconstruction_loss
 
 
 def average(input_list):
@@ -38,19 +38,14 @@ def evaluate(rollouts, config, model_dir, actor_critic,eval_envs, device, test_s
     gamma = 0.99
     baseEnv = eval_envs.venv.envs[0].env    
     
-    total_occ_agents = 0
-    estimated_occ_agents = 0
-    total_recon_loss = []
-    total_recon_loss_base = []
     total_similarity = []
     total_occupied_similarity = []
     total_free_similarity = []
     total_occluded_similarity = []
-    total_base_similarity1 = []
-    total_base_occupied_similarity1 = []
-    total_base_free_similarity1 = []
-    total_base_occluded_similarity1 = []
-    total_base_similarity2 = [] 
+    total_base_similarity = []
+    total_base_occupied_similarity = []
+    total_base_free_similarity = []
+    total_base_occluded_similarity = []
     
 
     for k in range(test_size):
@@ -101,31 +96,21 @@ def evaluate(rollouts, config, model_dir, actor_critic,eval_envs, device, test_s
                 if phase == 'test' and config.pas.encoder_type == 'vae':                  
                     gt_grid = obs['label_grid'][:,0] 
                     
-                    recon_loss = reconstruction_loss(gt_grid, obs['grid'][:,-1])    
-                    total_recon_loss.append(recon_loss)  
-                    recon_loss_base = reconstruction_loss(gt_grid, decoded)    
-                    total_recon_loss_base.append(recon_loss_base)                       
-                    
                     pas_grid = decoded.squeeze(0).squeeze(0).cpu().numpy() 
                     sensor_grid = obs['grid'][:,-1].squeeze(0).squeeze(0).cpu().numpy()
                     label_grid = gt_grid.squeeze(0).squeeze(0).cpu().numpy()
-                    similarity, base_similarity1, base_similarity2 = MapSimilarityMetric(pas_grid, sensor_grid, label_grid)
-                    if len(similarity)>1:
-                        total_similarity.append(similarity[0])
-                        total_occupied_similarity.append(similarity[1])
-                        total_free_similarity.append(similarity[2])
-                        total_occluded_similarity.append(similarity[3])
-                        
-                        total_base_similarity1.append(base_similarity1[0])
-                        total_base_occupied_similarity1.append(base_similarity1[1])
-                        total_base_free_similarity1.append(base_similarity1[2])
-                        total_base_occluded_similarity1.append(base_similarity1[3])
-                        
-                    else:
-                        total_similarity.append(similarity)
-                        total_base_similarity1.append(base_similarity1)
-                        total_base_similarity2.append(base_similarity2)
-                        
+                    similarity, base_similarity = MapSimilarityMetric(pas_grid, sensor_grid, label_grid)
+                    
+                    total_similarity.append(similarity[0])
+                    total_occupied_similarity.append(similarity[1])
+                    total_free_similarity.append(similarity[2])
+                    total_occluded_similarity.append(similarity[3])
+                    
+                    total_base_similarity.append(base_similarity[0])
+                    total_base_occupied_similarity.append(base_similarity[1])
+                    total_base_free_similarity.append(base_similarity[2])
+                    total_base_occluded_similarity.append(base_similarity[3])                       
+
 
             if not done:
                 global_time = baseEnv.global_time
@@ -225,22 +210,18 @@ def evaluate(rollouts, config, model_dir, actor_critic,eval_envs, device, test_s
             raise ValueError('Invalid end signal from environment')
 
         cumulative_rewards.append(sum([pow(gamma, t * baseEnv.robot.time_step * baseEnv.robot.v_pref)
-                                       * reward for t, reward in enumerate(rewards)]))
-
+                                       * reward for t, reward in enumerate(rewards)]).item())
     success_rate = success / test_size
     collision_rate = collision / test_size
     timeout_rate = timeout / test_size
-    print(success, collision, timeout)
     assert success + collision + timeout == test_size
-    avg_nav_time = sum(success_times) / len(
-        success_times) if success_times else baseEnv.time_limit  
 
     extra_info = ''
     logging.info(
         '{:<5} {}has success rate: {:.2f}, collision rate: {:.2f}, timeout rate: {:.2f}, '
         'nav time (mean/var): {:.2f}/{:.2f}, total reward: {:.4f}'.
             format(phase.upper(), extra_info, success_rate, collision_rate, timeout_rate, np.mean(success_times), np.var(success_times),
-                np.average(cumulative_rewards)))
+                np.average((cumulative_rewards))))
     if phase in ['val', 'test']:
         total_time = sum(success_times + collision_times + timeout_times)
         if min_dist:
@@ -251,23 +232,20 @@ def evaluate(rollouts, config, model_dir, actor_critic,eval_envs, device, test_s
                     too_close * baseEnv.robot.time_step / total_time, avg_min_dist)
 
     if phase == 'test' and config.pas.encoder_type != 'cnn':
-        avg_recon_loss = average(total_recon_loss)
-        avg_recon_loss_base = average(total_recon_loss_base)
-        if len(similarity) > 1:
-            avg_occupied_smiliarity = average(total_occupied_similarity)
-            avg_free_similarity = average(total_free_similarity)
-            avg_occluded_similarity  = average(total_occluded_similarity)
-            avg_base_occupied_smiliarity = average(total_base_occupied_similarity1)
-            avg_base_free_similarity = average(total_base_free_similarity1)
-            avg_base_occluded_similarity  = average(total_base_occluded_similarity1)
+
+        avg_occupied_smiliarity = average(total_occupied_similarity)
+        avg_free_similarity = average(total_free_similarity)
+        avg_occluded_similarity  = average(total_occluded_similarity)
+        avg_base_occupied_smiliarity = average(total_base_occupied_similarity)
+        avg_base_free_similarity = average(total_base_free_similarity)
+        avg_base_occluded_similarity  = average(total_base_occluded_similarity)
             
         avg_similarity = average(total_similarity)
-        avg_base_similarity1 = average(total_base_similarity1)
-        avg_base_similarity2 = average(total_base_similarity2)
+        avg_base_similarity = average(total_base_similarity)
         
         logging.info(
-            '{:<5} {}has object-level estimation accuracy: {:.3f}/{:.3f} and image similarity(pas/sensor/gt): {:.3f}/{:.3f}/{:.3f} and reconstruction loss (pas/sensor): {:.3f}/{:.3f}'.
-                format(phase.upper(), extra_info, estimated_occ_agents,total_occ_agents, avg_similarity, avg_base_similarity1, avg_base_similarity2, avg_recon_loss, avg_recon_loss_base))
+            '{:<5} {}has image similarity(pas/sensor): {:.3f}/{:.3f}'.
+                format(phase.upper(), extra_info, avg_similarity, avg_base_similarity))
         if len(similarity) > 1:
             logging.info(
             ' occupied image similarity(pas/sensor): {:.3f}/{:.3f} and free image similarity(pas/sensor): {:.3f}/{:.3f} and occluded image similarity(pas/sensor): {:.3f}/{:.3f} '.

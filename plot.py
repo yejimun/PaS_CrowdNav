@@ -15,8 +15,7 @@ logs2 = pd.read_csv(out_dir + "val_progress.csv", error_bad_lines=False)
 
 
 logDicts={1:logs1, 2:logs2} 
-# graphDicts={0:'eprewmean', 1:'loss/value_loss'}
-graphDicts={0:'eprewmean', 1:'loss/value_loss', 2: 'loss/policy_loss', 3:'loss/m_loss', 4:'loss/recon_loss'}
+graphDicts={0:'eprewmean', 1:'loss/value_loss', 2: 'loss/policy_loss', 3:'loss/PaS_loss'}
 
 legendList=[]
 # summarize history for accuracy

@@ -90,7 +90,6 @@ class Config(object):
     pas.gridtype = 'local' 
     pas.sequence = 4 # number of FOV grids stacked for Sensor AE lstm 
     pas.encoder_type = 'vae'  #'vae' or 'cnn'
-    pas.m_coef = 1. 
-    pas.est_coef = 1.
+    pas.PaS_coef = 1. 
     pas.seq_flag = True
 

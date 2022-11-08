@@ -10,7 +10,7 @@ import pdb
 from rl.storage import RolloutStorage
 from rl.model import Policy
 from rl.vec_env.envs import make_vec_envs
-from rl.evaluation import evaluate
+from evaluation import evaluate
 from crowd_sim import *
 
 

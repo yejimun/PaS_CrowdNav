@@ -22,11 +22,12 @@ inference for crowd navigation.
 </p>
 
 ## Setup
-1. Install [Python-RVO2](https://github.com/sybrenstuvel/Python-RVO2) library
-2. Install crowd_sim and crowd_nav into pip
+1. Install crowd_sim and crowd_nav into pip
 ```
 pip install -e .
+pip install -r requirements.txt
 ```
+2. Install [Python-RVO2](https://github.com/sybrenstuvel/Python-RVO2) library
 </p>
 
 ## Getting started
@@ -71,7 +72,7 @@ python test.py
 python plot.py
 ```
 
-(We only tested our code in Ubuntu 18.04 with Python 3.6.)
+(We only tested our code in Ubuntu 18.04 with Python 3.8.)
 
 ## Results 
 **Illustration of our occlusion inference performance.**

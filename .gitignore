@@ -1,9 +1,9 @@
 *.pyc 
 *__pycache__*
-arkiv/
 build/
 crowdenv/
 data/
-dist/
+**egg-info/
+Python-RVO2/
 Turtlebot_VAEdata/
 VAEdata_CircleFOV30/

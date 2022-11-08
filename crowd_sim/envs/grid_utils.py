@@ -28,7 +28,7 @@ def MapSimilarityMetric(pas_map, sensor_grid, label_grid):
     psi = [psi_sum, psi_occupied, psi_free, psi_occluded ]
     base_psi = [base_psi_sum, base_psi_occupied, base_psi_free, base_psi_occluded]
         
-    return psi, base_psi, 0.
+    return psi, base_psi
 
 def toDiscrete(m):
     """

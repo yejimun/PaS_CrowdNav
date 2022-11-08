@@ -14,8 +14,7 @@ warnings.filterwarnings('ignore')
 
 
 # Find the unknown cells using polygons for faster computation. (Result similar to ray tracing)
-def generateSensorGrid(label_grid, ego_dict, ref_dict, pre_local_xy, map_xy, FOV_radius, res=0.1, invisible_id=[None]):
-	pre_local_x, pre_local_y = pre_local_xy 
+def generateSensorGrid(label_grid, ego_dict, ref_dict, map_xy, FOV_radius, res=0.1):
 	x_local, y_local = map_xy
 	
 	center_ego = ego_dict['pos']
@@ -23,17 +22,13 @@ def generateSensorGrid(label_grid, ego_dict, ref_dict, pre_local_xy, map_xy, FOV
 	visible_id = []
 
 	# get the maximum and minimum x and y values in the local grids
-	x_shape = pre_local_x.shape[0]
-	y_shape = pre_local_y.shape[1]	
+	x_shape = x_local.shape[0]
+	y_shape = x_local.shape[1]	
 
 	id_grid = label_grid[1].copy()
 
 
-	unique_id = np.unique(id_grid)
-	unique_id= np.array(np.delete(unique_id, np.where(np.isnan(unique_id))),dtype=int)
-	ego_mask = np.where(unique_id == ego_dict['id'])
-	unique_id = np.delete(unique_id, ego_mask)  # don't include ego (robot) id
-
+	unique_id = np.unique(id_grid) # does not include ego (robot) id
    
 	# cells not occupied by ego itself
 	mask = np.where(label_grid[0]!=2, True,False)
@@ -108,9 +103,7 @@ def generateSensorGrid(label_grid, ego_dict, ref_dict, pre_local_xy, map_xy, FOV
  
 	for id in unique_id:
 		mask1 = (label_grid[1,:,:]==id)
-		if np.any(label_grid[0,mask1]== 2): #except ego car
-			pass
-		elif np.any(sensor_grid[mask1] == 1.):
+		if np.any(sensor_grid[mask1] == 1.):
 			sensor_grid[mask1] = 1. 
 			visible_id.append(id)
 	

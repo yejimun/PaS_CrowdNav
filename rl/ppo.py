@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from vae_pretrain import VAE_loss, MSE
+from vae_pretrain import KL_loss, MSE
 
 class PPO():
     def __init__(self,
@@ -11,8 +11,7 @@ class PPO():
                  num_mini_batch,
                  value_loss_coef,
                  entropy_coef,
-                 m_coef = None,
-                 recon_coef = None,
+                 PaS_coef = None,
                  lr=None,
                  eps=None,
                  max_grad_norm=None,
@@ -26,15 +25,14 @@ class PPO():
 
         self.value_loss_coef = value_loss_coef
         self.entropy_coef = entropy_coef
-        self.m_coef = m_coef
-        self.recon_coef = recon_coef
+        self.PaS_coef = PaS_coef
 
         self.max_grad_norm = max_grad_norm
         self.use_clipped_value_loss = use_clipped_value_loss
 
     
         if actor_critic.config.pas.encoder_type == 'vae':
-            if actor_critic.config.pas.m_coef > 0.:
+            if actor_critic.config.pas.PaS_coef > 0.:
                 # Freeze Label_VAE during the training
                 for param in self.actor_critic.base.Label_VAE.parameters():
                     param.requires_grad = False                 
@@ -50,8 +48,7 @@ class PPO():
         value_loss_epoch = 0
         action_loss_epoch = 0
         dist_entropy_epoch = 0
-        m_loss_epoch = 0
-        recon_loss_epoch = 0
+        PaS_loss_epoch = 0
 
 
         for e in range(self.ppo_epoch):
@@ -90,19 +87,10 @@ class PPO():
                 self.optimizer.zero_grad()
                 
                 if self.actor_critic.config.pas.encoder_type =='vae':
-                    if  self.actor_critic.config.pas.m_coef> 0.:
-                        m_loss = MSE(z_l, z)
-                    else:
-                        m_loss = torch.zeros(1).cuda()
-                    if  self.actor_critic.config.pas.est_coef> 0.:
-                        reconstruct_mask = torch.ones(decoded.squeeze(1).shape).to('cuda')                 
-                        recon_loss, k_loss = VAE_loss(obs_batch['label_grid'][:,[0]].squeeze(1), decoded.squeeze(1), mu, logvar)
-                    
-                    else:
-                        recon_loss = torch.zeros(1).cuda()        
-                        k_loss = torch.zeros(1).cuda()            
+                    PaS_loss = MSE(z_l, z)
+                    k_loss = KL_loss(mu, logvar)          
                         
-                    total_loss=value_loss * self.value_loss_coef + action_loss - dist_entropy * self.entropy_coef + recon_loss * self.recon_coef + m_loss * self.m_coef + k_loss * 0.00025                    
+                    total_loss=value_loss * self.value_loss_coef + action_loss - dist_entropy * self.entropy_coef + PaS_loss * self.PaS_coef + k_loss * 0.00025                    
                     
 
                 else:
@@ -119,8 +107,7 @@ class PPO():
                 dist_entropy_epoch += dist_entropy.item()  
 
                 if self.actor_critic.config.pas.encoder_type =='vae': 
-                    m_loss_epoch += m_loss.item()    
-                    recon_loss_epoch += recon_loss.item()
+                    PaS_loss_epoch += PaS_loss.item()    
 
         num_updates = self.ppo_epoch * self.num_mini_batch
 
@@ -129,9 +116,8 @@ class PPO():
         dist_entropy_epoch /= num_updates
 
         if self.actor_critic.config.pas.encoder_type =='vae' : 
-            m_loss_epoch /= num_updates
-            recon_loss_epoch /= num_updates
-            return value_loss_epoch, action_loss_epoch, dist_entropy_epoch, m_loss_epoch, recon_loss_epoch
+            PaS_loss_epoch /= num_updates
+            return value_loss_epoch, action_loss_epoch, dist_entropy_epoch, PaS_loss_epoch
 
         else:   
             return value_loss_epoch, action_loss_epoch, dist_entropy_epoch

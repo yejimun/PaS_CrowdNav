@@ -2,7 +2,7 @@ from setuptools import setup
 
 
 setup(
-    name='CrowdNav_PaSRL',
+    name='PaS_CrowdNav',
     version='0.0.1',
     packages=[
         'crowd_nav',
@@ -11,21 +11,6 @@ setup(
         'crowd_sim',
         'crowd_sim.envs',
         'crowd_sim.envs.utils',
-        'pytorchBaselines'
+        'rl'
     ],
-    install_requires=[
-        'gitpython',
-        'gym',
-        'matplotlib',
-        'numpy',
-        'scipy',
-        'torch',
-        'torchvision',
-    ],
-    extras_require={
-        'test': [
-            'pylint',
-            'pytest',
-        ],
-    },
 )
