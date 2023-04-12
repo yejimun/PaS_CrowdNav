@@ -1,6 +1,6 @@
 # PaS_CrowdNav
 This repository contains the code for our paper titled "Occlusion-Aware Crowd Navigation Using People as Sensors". 
-For more details, please refer to our [arXiv preprint](https://arxiv.org/abs/2210.00552))
+For more details, please refer to our [arXiv preprint](https://arxiv.org/abs/2210.00552)
 and [YouTube video](https://youtu.be/BG5s7w5BdME).
 
 <p align="center">
@@ -49,7 +49,7 @@ Details of the simulation framework can be found
 
 1. Collect data for training GT-VAE.
 - In `crowd_nav/configs/config.py`, set (i) `robot.policy` to `orca` and (ii) `sim.collectingdata` to `True`
-- In `arguments.py`, set `output_dir` to `VAEdata/{phase}` where phase is `train` or `val` or `test`
+- In `arguments.py`, set `output_dir` to `VAEdata_CircleFOV30/{phase}` where phase is `train` or `val` or `test`
 Run the following commands for all three phases.
 ```
 python collect_data.py 
