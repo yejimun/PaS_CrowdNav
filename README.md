@@ -59,10 +59,14 @@ python collect_data.py
 python vae_pretrain.py 
 ```
 3. Train policies.
+- In `crowd_nav/configs/config.py`, set (i) `robot.policy` to `pas_rnn` and (ii) `sim.collectingdata` to `False`
+- In `arguments.py`, set `output_dir` to `data/{foldername}` (i.e. 'data/pas_rnn')
 ```
 python train.py 
 ```
 4. Test policies.
+- In `test.py`, set `output_dir` to `data/pasrl`
+- In `test.py`, set `ckpt` to [{checkpoint}, {success rate}] (i.e. [38800, 0.95]) 
 ```
 python test.py 
 ```
